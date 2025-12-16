@@ -205,7 +205,7 @@ Follow these steps to test this add-in
   <img width="1915" height="942" alt="Screenshot 2025-12-16 170059" src="https://github.com/user-attachments/assets/ae4edc3e-6f9c-415e-aa3f-1ca361d4e002" />
 
 
-## 4. Real Deployment (Gmail)
+## 4. Real Deployment (Google workplace)
 **Note:** We are waiting for google to approve our app in google market place.
 
 
