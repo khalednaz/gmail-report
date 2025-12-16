@@ -180,60 +180,42 @@ Result: https://example.com/report?rid=abc123
 
 Result: https://example.com/login?rid=abc123/report?rid=abc123 (Invalid)
 
-## 4. Deployment (Microsoft 365 Admin Console)
+## 4. Test Deployment (Gmail)
 
-### Centralized Deployment
 
-Follow these steps to deploy the add-in organization-wide via the Microsoft 365 Admin Center  
-(**administrator privileges are required**):
+Follow these steps to test this add-in
 
-1. Open the **Microsoft 365 Admin Center**: https://admin.microsoft.com
+1. Open the **Google scripts**: (https://script.google.com/)
    
-   <img width="1899" height="940" alt="Screenshot 2025-12-16 144219" src="https://github.com/user-attachments/assets/cc00984c-7fdc-41df-a545-ebafb890590e" />
+   <img width="1915" height="940" alt="Screenshot 2025-12-16 165437" src="https://github.com/user-attachments/assets/4eeced5d-83b1-4f69-9810-981df240361c" />
 
 
-2. Go to **Settings** → **Integrated apps**.
+2. Click on **New Project**.
    
-   <img width="1917" height="935" alt="Screenshot 2025-12-16 144504" src="https://github.com/user-attachments/assets/05a42468-14c5-4102-b5d2-f444a9339243" />
+  <img width="1919" height="943" alt="Screenshot 2025-12-16 165617" src="https://github.com/user-attachments/assets/c099f208-4ab4-4cfe-bad1-5d83f606c5a1" />
 
    
-3. Select **Upload Custom Apps**.
+3. Paste the content of Code.js in this respo to opened Code.js, and create a new file called appsscript.json and paste the content of this respo's appsscript.json.
    
-   <img width="1911" height="937" alt="Screenshot 2025-12-16 144802" src="https://github.com/user-attachments/assets/c582038a-f8d0-40e4-b9ef-2659567a9528" />
-
+   <img width="1919" height="942" alt="Screenshot 2025-12-16 165810" src="https://github.com/user-attachments/assets/b9f640d7-dd42-49a7-a351-7f21c071ccd8" />
    
-4. Select **App Type** as **Office Add-in**.
+
+4. Click on **deploy** Button on the top right then choose on test deployement, then click on install .
    
-   <img width="1907" height="941" alt="Screenshot 2025-12-16 144854" src="https://github.com/user-attachments/assets/1c0106f3-9408-4d0a-a1d2-f2b32c495a83" />
+  <img width="1915" height="942" alt="Screenshot 2025-12-16 170059" src="https://github.com/user-attachments/assets/ae4edc3e-6f9c-415e-aa3f-1ca361d4e002" />
 
 
-5. Upload the provided `manifest.xml` file and click next.
-   
-   <img width="1902" height="938" alt="Screenshot 2025-12-16 150132" src="https://github.com/user-attachments/assets/6cb7fe6a-6ff3-4570-8b95-dd52b3d557ab" />
-
-
-6. Select **Entire organization** and click next.
-    
-   <img width="1913" height="942" alt="Screenshot 2025-12-16 150249" src="https://github.com/user-attachments/assets/cc3107df-a826-40fb-bb1a-713eb594e44e" />
-
-
-7. Accept permissions requests by clicking next and then click finish to deploy in the next step.
-    
-   <img width="1913" height="937" alt="Screenshot 2025-12-16 151746" src="https://github.com/user-attachments/assets/dd945fb8-8563-4cce-814c-e68bb068ef76" />
+## 4. Real Deployment (Gmail)
+**Note:** We are waiting for google to approve our app in google market place.
 
 
 
-**Availability** Organization-wide deployment can take up to **24 hours**; users may need to restart **Gmail Desktop** or refresh **Gmail Web** to see the add-in.
+## Main Functions in Code.gs
 
-## Add-in File Structure
+- **onGmailMessageOpen(e)** – Builds the add-on card UI when an email is opened (header + “Report Phishing” button that triggers `reportPhish_`).
+- **reportPhish_(e)** – Runs on button click: loads the opened message, resolves the `/report?rid=...` URL, calls the report endpoint, then shows success/fail notification.
+- **resolveReportUrl_(msg)** – Resolves the correct `https://.../report?rid=...` link without hardcoding a domain (marker → direct link → rid+base fallback).
 
-- **manifest.xml** – Defines the add-in identity, permissions, supported hosts, UI buttons, icons, and which pages/scripts Gmail should load.
-- **commands.html** – Lightweight loader page that loads Office.js and the command logic when the user clicks the add-in button.
-- **commands.js** – Core logic that reads the email content, extracts the report URL, calls the phishing system, and shows success or failure messages.
-- **taskpane.html** – Minimal task pane/read surface referenced by the manifest, mainly to satisfy Gmail UI requirements.
-- **assets/** – Contains icon images used for the toolbar button and add-in listing (16/32/80/128 px).
-
-**Note:** All add-in files are hosted over HTTPS at **https://brixeon.com/Gmail-addin/**.
 
 
 
