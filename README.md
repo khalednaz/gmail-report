@@ -1,13 +1,13 @@
-# Brixeon Outlook Report Phishing Add-in
+# Brixeon Gmail Report Phishing Add-in
 
-This document explains how the Brixeon Outlook Report Phishing add-in integrates with the phishing system, how users report emails, how email templates must be configured, and how the add-in is deployed organization-wide in Microsoft 365 (**1. Logic**, **2. Usage**, **3. Email Template Requirements**, **4. Microsoft 365 Deployment**)
+This document explains how the Brixeon Gmail Report Phishing add-in integrates with the phishing system, how users report emails, how email templates must be configured, and how the add-in is deployed organization-wide in Google Workplace (**1. Logic**, **2. Usage**, **3. Email Template Requirements**, **4. Google Workplace Deployment**)
 
 ## 1. How the logic works with the phishing system
 
 ### Flow
 
-1. A user opens an email in Outlook (Web or Desktop).
-2. The user clicks **Report Phishing** from the Brixeon Outlook add-in.
+1. A user opens an email in Gmail.
+2. The user clicks **Report Phishing** from the Brixeon Gmail add-in.
 3. The add-in scans the email body and extracts a reporting URL:
  ```js
 /report?rid=<RID>
@@ -22,45 +22,74 @@ GET https://<BASE_URL>/report?rid=<RID>
 - Loads the correct campaign result
 - Marks the email as **Reported**
 
-### Outlook add-in: extracting the report URL (no hardcoded domain)
+### Gmail add-in: extracting the report URL (no hardcoded domain)
 
-The Outlook add-in extractes the reporting URL using multiple fallback strategies to support different environments and template formats.
-**commands.js**
+The Gmail add-in extractes the reporting URL using multiple fallback strategies to support different environments and template formats.
+**Code.gs**
 ```js
-function resolveReportUrl_(combinedBody) {
-// (1) Marker: BRIXEON_REPORT_URL:... or BRIXEON_REPORT_URL=...
-var marker = extractMarkerUrlAny_(combinedBody, "BRIXEON_REPORT_URL");
-if (marker) return normalizeReportUrl_(marker);
+function resolveReportUrl_(msg) {
+  var combined = getMessageCombinedBody_(msg);
 
-// (2) Any URL containing /report?rid=
-var reportLink = findFirstUrlContaining_(combinedBody, "/report?rid=");
-if (reportLink) return normalizeReportUrl_(extractDirectUrl_(reportLink));
+  // (1) Marker (supports ":" or "=")
+  var marker = extractMarkerUrlAny_(combined, "BRIXEON_REPORT_URL");
+  if (marker) {
+    var cleanedMarker = normalizeReportUrl_(marker);
+    if (cleanedMarker) return cleanedMarker;
+  }
 
-// (3) Fallback: extract rid + base from any rid link, then build /report
-var rid = extractRidFromText_(combinedBody);
-var ridLink = findFirstUrlContainingRid_(combinedBody);
-var base = getBaseUrl_(extractDirectUrl_(ridLink));
+  // (2) Direct report link anywhere (decode wrappers)
+  var reportLink = findFirstUrlContaining_(combined, "/report?rid=");
+  if (reportLink) {
+    var cleanedReport = normalizeReportUrl_(extractDirectUrl_(reportLink));
+    if (cleanedReport) return cleanedReport;
+  }
 
-return base.replace(/\/+$/, "") + "/report?rid=" + encodeURIComponent(rid);
+  // (3) Fallback: extract rid + base from any rid link, then build /report
+  var rid = extractRidFromText_(combined);
+  if (!rid) return "";
+
+  var ridLink = findFirstUrlContainingRid_(combined);
+  if (!ridLink) return "";
+
+  var cleanRidLink = extractDirectUrl_(ridLink);
+  var base = getBaseUrl_(cleanRidLink);
+  if (!base) return "";
+
+  return base.replace(/\/+$/, "") + "/report?rid=" + encodeURIComponent(rid);
 }
 ```
 
 Once the URL is resolved, the add-in calls the endpoint:
-**commands.js**
+**Code.gs**
 ```js
-function hitReportEndpoint_(url, cb) {
-  fetch(url, {
-    method: "GET",
-    redirect: "follow",
-    credentials: "omit"
-  })
-    .then(function (resp) {
-      var ok = (resp.status === 204 || resp.status === 200 || resp.status === 302);
-      cb({ ok: ok, code: resp.status });
-    })
-    .catch(function (err) {
-      cb({ ok: false, code: 0, err: String(err) });
-    });
+function reportPhish_(e) {
+  try {
+    var messageId = safeGet_(e, ["gmail", "messageId"], "");
+    if (!messageId) return notify_("No message detected. Reopen the email.");
+
+    var msg = GmailApp.getMessageById(messageId);
+
+    // 1) Resolve the report URL (marker first, then fallback)
+    var reportUrl = resolveReportUrl_(msg);
+
+    if (!reportUrl) {
+      console.log("REPORT: Could not resolve report URL from message.");
+      return notify_("We couldn’t find a report link in this message. Ask your admin to add the BRIXEON_REPORT_URL marker to the email template.");
+    }
+
+    // 2) Call the report URL
+    var hit = hitReportEndpoint_(reportUrl);
+    if (!hit.ok) {
+      console.log("REPORT: failed code=" + hit.code + " url=" + reportUrl + " body=" + hit.body);
+      return notify_("Report failed (" + hit.code + "). Please try again, or contact your administrator.");
+    }
+
+    console.log("REPORT: success code=" + hit.code + " url=" + reportUrl);
+    return notify_("Reported. Thanks for helping keep your organization safe. ✅");
+  } catch (err) {
+    console.log("reportPhish_ error: " + err);
+    return notify_("Report failed. Check Apps Script Executions log.");
+  }
 }
 
 ```
@@ -101,22 +130,23 @@ End result
 The campaign results dashboard shows the email as Reported.
 
 ## 2. How a User Reports an Email (Usage)
-### User Steps (Outlook)
-1. Open the suspicious email in Outlook.
+### User Steps (Gmail)
+1. Open the suspicious email in Gmail.
    
-   <img width="1535" height="890" alt="Screenshot 2025-12-16 140647" src="https://github.com/user-attachments/assets/a945e069-7b75-4754-8f3d-cb72955a6106" />
-   
-3. Click the "Brixeon – Report Phishing" button.
-   
-   <img width="1288" height="815" alt="Screenshot 2025-12-16 140828" src="https://github.com/user-attachments/assets/bc960f34-d43a-4153-9d6f-eec2a988e86e" />
-   
-  **Or from Apps Icon**
-  
-   <img width="1903" height="936" alt="Screenshot 2025-12-16 154441" src="https://github.com/user-attachments/assets/3f8f5f8b-3e4f-467c-a89b-90a56c0f3ddc" />
+   <img width="1914" height="936" alt="Screenshot 2025-12-16 163212" src="https://github.com/user-attachments/assets/59012946-6f43-4a50-848a-58f965e328be" />
 
    
+2. Click the "Brixeon Icon" on the side menu.
+   
+   <img width="1914" height="936" alt="Screenshot 2025-12-16 163212" src="https://github.com/user-attachments/assets/59012946-6f43-4a50-848a-58f965e328be" />
 
-5. Wait for the add-in to process:
+   
+3. Click the "Report Phishing" Button.
+   
+   <img width="1918" height="940" alt="Screenshot 2025-12-16 163224" src="https://github.com/user-attachments/assets/ece7482f-3ea4-4f48-98ed-165f49355a36" />
+   
+
+4. Wait for the add-in to process:
 
     - Scans the email body for the report URL.
     - Contacts the phishing system.
@@ -125,7 +155,7 @@ The campaign results dashboard shows the email as Reported.
 ### User Feedback Notifications
 The add-in provides a clear message upon completion:
 
-<img width="577" height="305" alt="Screenshot 2025-12-16 141327" src="https://github.com/user-attachments/assets/f1f8d1f1-a428-4982-b6c6-08780d6a6f5a" />
+<img width="1912" height="937" alt="Screenshot 2025-12-16 163819" src="https://github.com/user-attachments/assets/7c7b09ec-2665-4e80-9eba-2847e138a879" />
 
 
 **Note:** On failure, a message will appear saying “Couldn’t find a report link”. This usually means the email template is missing the required reporting marker.
@@ -193,17 +223,17 @@ Follow these steps to deploy the add-in organization-wide via the Microsoft 365 
 
 
 
-**Availability** Organization-wide deployment can take up to **24 hours**; users may need to restart **Outlook Desktop** or refresh **Outlook Web** to see the add-in.
+**Availability** Organization-wide deployment can take up to **24 hours**; users may need to restart **Gmail Desktop** or refresh **Gmail Web** to see the add-in.
 
 ## Add-in File Structure
 
-- **manifest.xml** – Defines the add-in identity, permissions, supported hosts, UI buttons, icons, and which pages/scripts Outlook should load.
+- **manifest.xml** – Defines the add-in identity, permissions, supported hosts, UI buttons, icons, and which pages/scripts Gmail should load.
 - **commands.html** – Lightweight loader page that loads Office.js and the command logic when the user clicks the add-in button.
 - **commands.js** – Core logic that reads the email content, extracts the report URL, calls the phishing system, and shows success or failure messages.
-- **taskpane.html** – Minimal task pane/read surface referenced by the manifest, mainly to satisfy Outlook UI requirements.
+- **taskpane.html** – Minimal task pane/read surface referenced by the manifest, mainly to satisfy Gmail UI requirements.
 - **assets/** – Contains icon images used for the toolbar button and add-in listing (16/32/80/128 px).
 
-**Note:** All add-in files are hosted over HTTPS at **https://brixeon.com/outlook-addin/**.
+**Note:** All add-in files are hosted over HTTPS at **https://brixeon.com/Gmail-addin/**.
 
 
 
