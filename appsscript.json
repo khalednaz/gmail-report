@@ -1,0 +1,28 @@
+{
+  "timeZone": "Asia/Amman",
+  "exceptionLogging": "STACKDRIVER",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/script.external_request"
+  ],
+  "urlFetchWhitelist": [
+    "https://brixeon.com/"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Brixeon Report Phishing",
+      "logoUrl": "https://brixeon.com/images/brixeon-logo.png",
+      "useLocaleFromApp": false
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "onGmailMessageOpen"
+        }
+      ]
+    }
+  },
+  "runtimeVersion": "V8"
+}
